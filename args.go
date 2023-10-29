@@ -28,7 +28,7 @@ type ArgMarshaler interface {
 	MarshalArg() string
 }
 
-// MarshalArgs marshals a struct into a slice of strings suitable for passing to
+// Marshal marshals a struct into a slice of strings suitable for passing to
 // a command line program. It's a very naive implementation that only supports
 // a limited set of types.
 func Marshal(opts any) []string {
