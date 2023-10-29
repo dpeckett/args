@@ -26,18 +26,17 @@ import (
 
 type Options struct {
 	CredentialOptions
-	Verbose     *YesNo   `arg:"--verbose"`
+	Verbose     *YesNo   `arg:"verbose"`
 	File        string   `arg:"1"`
 	Destination string   `arg:"0"`
-	Repeated    []string `arg:"--repeated"`
+	Repeated    []string `arg:"repeated"`
 }
 
 type CredentialOptions struct {
-	User     string `arg:"--user"`
-	Password string `arg:"--password"`
+	User     string `arg:"user"`
+	Password string `arg:"password"`
 }
 
-// YesNo is a boolean type that marshals to "y" or "n".
 type YesNo bool
 
 func (yn *YesNo) MarshalText() string {

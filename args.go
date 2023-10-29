@@ -57,86 +57,50 @@ func MarshalArgs(opts any) []string {
 			continue
 		}
 
-		var arg string
+		var argsToAppend []string
 		switch v := field.Value().(type) {
 		case bool:
-			if isPosArg {
-				if v {
-					arg = "true"
-				} else {
-					arg = "false"
-				}
-			} else {
-				if v {
-					arg = tag
-				}
-			}
+			argsToAppend = marshalBool(tag, v)
 		case *bool:
-			if isPosArg {
-				if *v {
-					arg = "true"
-				} else {
-					arg = "false"
-				}
-			} else {
-				if *v {
-					arg = tag
-				}
-			}
+			argsToAppend = marshalBool(tag, *v)
 		case int:
-			if isPosArg {
-				arg = strconv.Itoa(v)
-			} else {
-				arg = fmt.Sprintf("%s=%d", tag, v)
-			}
+			argsToAppend = marshalInt(tag, v)
 		case *int:
-			if isPosArg {
-				arg = strconv.Itoa(*v)
-			} else {
-				arg = fmt.Sprintf("%s=%d", tag, *v)
-			}
+			argsToAppend = marshalInt(tag, *v)
 		case string:
-			if isPosArg {
-				arg = v
-			} else {
-				arg = fmt.Sprintf("%s=%s", tag, v)
-			}
+			argsToAppend = marshalString(tag, v)
 		case *string:
-			if isPosArg {
-				arg = *v
-			} else {
-				arg = fmt.Sprintf("%s=%s", tag, *v)
-			}
+			argsToAppend = marshalString(tag, *v)
 		case []string:
-			if isPosArg {
-				for _, s := range v {
-					posArgs[pos] = s
-					pos++
-				}
-			} else {
-				for _, s := range v {
-					args = append(args, fmt.Sprintf("%s=%s", tag, s))
+			for _, s := range v {
+				argsToAppend = marshalString(tag, s)
+				if isPosArg {
+					for i := 0; i < len(argsToAppend); i++ {
+						posArgs[pos] = argsToAppend[i]
+						pos++
+					}
+				} else {
+					args = append(args, argsToAppend...)
 				}
 			}
 
 			continue
 		default:
 			if m, ok := field.Value().(TextMarshaler); ok {
-				if isPosArg {
-					arg = m.MarshalText()
-				} else {
-					arg = fmt.Sprintf("%s=%s", tag, m.MarshalText())
-				}
+				argsToAppend = marshalTextMarshaler(tag, m)
 			} else {
 				panic(fmt.Sprintf("unsupported argument type: %s", field.Kind()))
 			}
 		}
 
-		if arg != "" {
+		if len(argsToAppend) > 0 {
 			if isPosArg {
-				posArgs[pos] = arg
+				for i := 0; i < len(argsToAppend); i++ {
+					posArgs[pos] = argsToAppend[i]
+					pos++
+				}
 			} else {
-				args = append(args, arg)
+				args = append(args, argsToAppend...)
 			}
 		}
 	}
@@ -149,20 +113,74 @@ func MarshalArgs(opts any) []string {
 	return append(args, orderedPosArgs...)
 }
 
-// YesNo is a boolean type that marshals to "y" or "n".
-type YesNo bool
-
-var Yes = PtrTo(YesNo(true))
-var No = PtrTo(YesNo(false))
-
-func (yn *YesNo) MarshalText() string {
-	if *yn {
-		return "y"
+func marshalBool(tag string, v bool) []string {
+	var isPos bool
+	if _, err := strconv.Atoi(tag); err == nil {
+		isPos = true
 	}
 
-	return "n"
+	if isPos {
+		if v {
+			return []string{"true"}
+		}
+		return []string{"false"}
+	} else if v {
+		if len(tag) == 1 {
+			return []string{"-" + tag}
+		}
+		return []string{"--" + tag}
+	}
+
+	return nil
 }
 
-func PtrTo[T any](v T) *T {
-	return &v
+func marshalInt(tag string, v int) []string {
+	var isPos bool
+	if _, err := strconv.Atoi(tag); err == nil {
+		isPos = true
+	}
+
+	if isPos {
+		return []string{strconv.Itoa(v)}
+	}
+
+	if len(tag) == 1 {
+		return []string{"-" + tag, strconv.Itoa(v)}
+	}
+
+	return []string{fmt.Sprintf("--%s=%d", tag, v)}
+}
+
+func marshalString(tag, v string) []string {
+	var isPos bool
+	if _, err := strconv.Atoi(tag); err == nil {
+		isPos = true
+	}
+
+	if isPos {
+		return []string{v}
+	}
+
+	if len(tag) == 1 {
+		return []string{"-" + tag, v}
+	}
+
+	return []string{fmt.Sprintf("--%s=%s", tag, v)}
+}
+
+func marshalTextMarshaler(tag string, v TextMarshaler) []string {
+	var isPos bool
+	if _, err := strconv.Atoi(tag); err == nil {
+		isPos = true
+	}
+
+	if isPos {
+		return []string{v.MarshalText()}
+	}
+
+	if len(tag) == 1 {
+		return []string{"-" + tag, v.MarshalText()}
+	}
+
+	return []string{fmt.Sprintf("--%s=%s", tag, v.MarshalText())}
 }
