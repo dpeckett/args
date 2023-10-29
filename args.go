@@ -24,21 +24,21 @@ import (
 	"github.com/fatih/structs"
 )
 
-type TextMarshaler interface {
-	MarshalText() string
+type ArgMarshaler interface {
+	MarshalArg() string
 }
 
 // MarshalArgs marshals a struct into a slice of strings suitable for passing to
 // a command line program. It's a very naive implementation that only supports
 // a limited set of types.
-func MarshalArgs(opts any) []string {
+func Marshal(opts any) []string {
 	var args []string
 	var posArgs = make(map[int]string)
 
 	s := structs.New(opts)
 	for _, field := range s.Fields() {
 		if field.IsEmbedded() {
-			args = append(args, MarshalArgs(field.Value())...)
+			args = append(args, Marshal(field.Value())...)
 			continue
 		}
 
@@ -60,20 +60,20 @@ func MarshalArgs(opts any) []string {
 		var argsToAppend []string
 		switch v := field.Value().(type) {
 		case bool:
-			argsToAppend = marshalBool(tag, v)
+			argsToAppend = marshalBoolFlag(tag, v)
 		case *bool:
-			argsToAppend = marshalBool(tag, *v)
+			argsToAppend = marshalBoolFlag(tag, *v)
 		case int:
-			argsToAppend = marshalInt(tag, v)
+			argsToAppend = marshalIntFlag(tag, v)
 		case *int:
-			argsToAppend = marshalInt(tag, *v)
+			argsToAppend = marshalIntFlag(tag, *v)
 		case string:
-			argsToAppend = marshalString(tag, v)
+			argsToAppend = marshalStringFlag(tag, v)
 		case *string:
-			argsToAppend = marshalString(tag, *v)
+			argsToAppend = marshalStringFlag(tag, *v)
 		case []string:
 			for _, s := range v {
-				argsToAppend = marshalString(tag, s)
+				argsToAppend = marshalStringFlag(tag, s)
 				if isPosArg {
 					for i := 0; i < len(argsToAppend); i++ {
 						posArgs[pos] = argsToAppend[i]
@@ -86,8 +86,8 @@ func MarshalArgs(opts any) []string {
 
 			continue
 		default:
-			if m, ok := field.Value().(TextMarshaler); ok {
-				argsToAppend = marshalTextMarshaler(tag, m)
+			if m, ok := field.Value().(ArgMarshaler); ok {
+				argsToAppend = marshalCustomFlag(tag, m)
 			} else {
 				panic(fmt.Sprintf("unsupported argument type: %s", field.Kind()))
 			}
@@ -113,7 +113,7 @@ func MarshalArgs(opts any) []string {
 	return append(args, orderedPosArgs...)
 }
 
-func marshalBool(tag string, v bool) []string {
+func marshalBoolFlag(tag string, v bool) []string {
 	var isPos bool
 	if _, err := strconv.Atoi(tag); err == nil {
 		isPos = true
@@ -134,7 +134,7 @@ func marshalBool(tag string, v bool) []string {
 	return nil
 }
 
-func marshalInt(tag string, v int) []string {
+func marshalIntFlag(tag string, v int) []string {
 	var isPos bool
 	if _, err := strconv.Atoi(tag); err == nil {
 		isPos = true
@@ -151,7 +151,7 @@ func marshalInt(tag string, v int) []string {
 	return []string{fmt.Sprintf("--%s=%d", tag, v)}
 }
 
-func marshalString(tag, v string) []string {
+func marshalStringFlag(tag, v string) []string {
 	var isPos bool
 	if _, err := strconv.Atoi(tag); err == nil {
 		isPos = true
@@ -168,19 +168,19 @@ func marshalString(tag, v string) []string {
 	return []string{fmt.Sprintf("--%s=%s", tag, v)}
 }
 
-func marshalTextMarshaler(tag string, v TextMarshaler) []string {
+func marshalCustomFlag(tag string, v ArgMarshaler) []string {
 	var isPos bool
 	if _, err := strconv.Atoi(tag); err == nil {
 		isPos = true
 	}
 
 	if isPos {
-		return []string{v.MarshalText()}
+		return []string{v.MarshalArg()}
 	}
 
 	if len(tag) == 1 {
-		return []string{"-" + tag, v.MarshalText()}
+		return []string{"-" + tag, v.MarshalArg()}
 	}
 
-	return []string{fmt.Sprintf("--%s=%s", tag, v.MarshalText())}
+	return []string{fmt.Sprintf("--%s=%s", tag, v.MarshalArg())}
 }

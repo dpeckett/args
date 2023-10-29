@@ -39,7 +39,7 @@ type CredentialOptions struct {
 
 type YesNo bool
 
-func (yn *YesNo) MarshalText() string {
+func (yn *YesNo) MarshalArg() string {
 	if *yn {
 		return "y"
 	}
@@ -47,10 +47,10 @@ func (yn *YesNo) MarshalText() string {
 	return "n"
 }
 
-func TestMarshalArgs(t *testing.T) {
+func TestMarshal(t *testing.T) {
 	yes := YesNo(true)
 
-	args := args.MarshalArgs(Options{
+	args := args.Marshal(Options{
 		CredentialOptions: CredentialOptions{
 			User: "root",
 		},
