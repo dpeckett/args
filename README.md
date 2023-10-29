@@ -1,2 +1,3 @@
 # args
-A Go library for creating lightweight cli wrappers.
+
+A Go library for creating lightweight CLI wrappers.
